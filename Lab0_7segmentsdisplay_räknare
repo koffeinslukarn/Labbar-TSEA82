@@ -1,0 +1,57 @@
+; Används som räknare vid knapptryck för att labbsalens 7segmanetsdisplay ska fungera.
+	.equ MAX_NUM = 10 ;Konstant
+	ldi r16, HIGH(RAMEND)
+	out SPH, r16
+	ldi r16, LOW(RAMEND)
+	out SPL, r16
+	call INIT
+	clr r17
+
+	; MAIN
+
+LOOP:
+	call KEY
+	; inc r17
+	call COUNT_UP
+	cpi r17, MAX_NUM
+	brne NOT_MAX
+	clr r17
+
+NOT_MAX:
+	call PRINT
+	jmp LOOP 
+
+
+KEY:
+	call READ_BIT0
+	brne KEY
+
+KEY_WAIT:
+	call READ_BIT0
+	breq KEY_WAIT
+	ret
+
+PRINT:
+	andi r17, $0F
+	out PORTB, r17
+	ret
+
+COUNT_UP:
+	inc r17
+	ret
+
+
+INIT:
+	ldi r16, $00
+	out DDRA, r16
+	ldi r16, $0F
+	out DDRB, r16
+	ret
+
+READ_BIT0:
+	in r16, PINA
+	andi r16, $01
+	ret
+
+
+
