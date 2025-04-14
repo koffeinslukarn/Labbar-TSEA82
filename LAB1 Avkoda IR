@@ -1,0 +1,73 @@
+	.equ T = 33 ; Clocktime
+
+	ldi r16,HIGH(RAMEND) ; set stack
+	out SPH,r16 ; for calls
+	ldi r16,LOW(RAMEND)
+	out SPL,r16
+	call INIT
+	clr r20 ; Register with screen Value
+WAIT:
+	call GET_START
+	cpi r21,0
+	breq WAIT 
+	clr r18
+	ldi r18, T ; loads delay time into r18
+	asr r18 ; divides r18 by 2
+	call DELAY ; now we are synced
+	call GET_START
+	cpi r21,0
+	breq WAIT 
+	call DATA_READ
+	out PORTB, r20
+	call DELAY ; now we are synced
+	jmp WAIT
+
+INIT:
+	clr r16
+	out DDRA,r16
+	ldi r16,$FF
+	out DDRB,r16
+	ret
+DELAY:
+	sbi PORTB,7 ; For oscillioscope
+	mov r16, r18 ; Decimal bas (T milliseconds)
+delayYttreLoop:
+	ldi r17,$1F
+delayInreLoop:
+	dec r17
+	brne delayInreLoop
+	dec r16
+	brne delayYttreLoop
+	cbi PORTB,7
+	ret
+
+	
+GET_START:
+	clr r21 ; assume not pressed
+	sbic PINA,0 ; skip over if not pressed
+	dec r21 ; r21=$FF
+	ret
+DATA_READ:
+	clr r19
+	clr r22
+	ldi r22, 0x08
+	ldi r19, $3
+	clr r20
+	call MainLoop
+	ret
+
+
+MainLoop:
+	clr r18
+	ldi r18, T ; Load original Clock time
+	call DELAY 
+	sbic PINA,0 ; skips over increment if PINA was 0
+	or r20, r22
+	lsr r20
+	dec r19
+	brne MainLoop
+	call DELAY
+	sbic PINA, 0
+	or r20, r22
+	ret
+	
