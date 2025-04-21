@@ -1,0 +1,12 @@
+.equ N ; Hastighet
+.equ T ; Tonhöjd
+
+HW_INIT:
+
+GET_CHAR:
+
+MORSE:
+	call HW_INIT
+	call GET_CHAR
+	
+ 
