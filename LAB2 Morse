@@ -1,20 +1,21 @@
 	.equ N = 300         
 	.equ T = 250
+	.def ZERO = r1
 
 	ldi r16,HIGH(RAMEND) ; set stack
 	out SPH,r16 ; for calls
 	ldi r16,LOW(RAMEND)
 	out SPL,r16
 	call HW_INIT
-	clr ZERO
 	call MORSE
 
 
 HW_INIT:
+	clr ZERO
 	sbi DDRB, 4
 	ldi letter_num, 0
 	ldi repeat, 3
-	.def ZERO = r1
+	
 
 GET_CHAR:
 	ldi ZH, HIGH(MESSAGE*2)
@@ -38,7 +39,6 @@ delayInreLoop:
 	cbi PORTB,7
 	ret
 
-	
 LOOKUP:
     ; res = ASCII‑kod för bokstav
     cpi res, 'A'
@@ -46,16 +46,16 @@ LOOKUP:
     cpi res, 'Z'+1
     brsh unknown_char
 
-    subi res, 'A'          ; index = 0..25
-    ldi  ZL, LOW(BTAB)     ; bytadress direkt
-    ldi  ZH, HIGH(BTAB)
-    add  ZL, res           ; Z = BTAB + index
-    adc  ZH, ZERO ;ustera hög–byte om överfyllnad
-    lpm  res, Z            ; läs morsekod
+    subi res, 'A'            ; index = 0..25
+    ldi  ZL, LOW(BTAB*2)     ; *2 för word→byte‑adress
+    ldi  ZH, HIGH(BTAB*2)
+    add  ZL, res             ; Z = BTAB*2 + index
+    adc  ZH, ZERO            ; ZERO=r1=0
+    lpm  res, Z              ; läs rätt morsekod
     ret
 
 unknown_char:
-    ldi res, 0             ; okänt → 0 (ingen kod)
+    ldi res, 0               ; okänt → 0
     ret
 
 SEND:
