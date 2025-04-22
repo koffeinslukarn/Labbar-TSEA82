@@ -3,9 +3,9 @@
 ; ============================================
 
     ; --- Registeralias högst upp ---
-    .def ZERO        = r1      ; alltid noll (CLR i HW_INIT)
-    .def RES         = r16     ; resultat från GET_CHAR/LOOKUP
-    .def LETTER_NUM  = r17     ; index i strängen MESSAGE
+    .def ZERO        = r1      ; alltid 0 (CLR i HW_INIT)
+    .def RES         = r16     ; GET_CHAR‑resultat & LOOKUP‑output
+    .def LETTER_NUM  = r17     ; index i MESSAGE
     .def TMP         = r19     ; temporärt i SEND & BEEP/NOBEEP
     .def BEAT        = r20     ; temporärt i BEEP/NOBEEP
 
@@ -14,7 +14,7 @@
     .equ T = 250               ; tonhöjd (antal DELAY‑iterationer per hög/låg)
 
 ; --------------------------------------------
-; Start: initiera stack, hårdvara och kör MORSE
+; Start: initiera stack och hårdvara, kör MORSE
 ; --------------------------------------------
     ldi   r16, HIGH(RAMEND)
     out   SPH, r16
@@ -24,8 +24,8 @@
     call  HW_INIT
     call  MORSE
 
-HANG:                       ; evig loop efter MORSE
-    rjmp  HANG
+DONE:                      ; evig loop när MORSE är klar
+    rjmp  DONE
 
 ; --------------------------------------------
 ; HW_INIT: nollställ ZERO, initiera I/O & variabler
@@ -42,14 +42,30 @@ HW_INIT:
 GET_CHAR:
     ldi   ZH, HIGH (MESSAGE*2)
     ldi   ZL, LOW  (MESSAGE*2)
-    add   ZL, LETTER_NUM     ; byte‑offset = 2*word‑addr + index
+    add   ZL, LETTER_NUM     ; byte‑offset = base*2 + index
     adc   ZH, ZERO           ; justera high‑byte om carry
     inc   LETTER_NUM
     lpm   RES, Z             ; läs ASCII in i RES
     ret
 
 ; --------------------------------------------
-; LOOKUP: konvertera ASCII ’A’–’Z’ → morsekod via BTAB
+; DELAY: enkel dubbel-loop för tidsfördröjning
+; --------------------------------------------
+DELAY:
+    sbi   PORTB, 7           ; oscilloskop‑trigger (valfritt)
+    mov   r16, r18           ; r18 = antal “T”-iterationer
+DL_OUTER:
+    ldi   r17, 0x1F
+DL_INNER:
+    dec   r17
+    brne  DL_INNER
+    dec   r16
+    brne  DL_OUTER
+    cbi   PORTB, 7
+    ret
+
+; --------------------------------------------
+; LOOKUP: ASCII ’A’–’Z’ → morsekod via BTAB
 ; --------------------------------------------
 LOOKUP:
     cpi   RES, 'A'
@@ -58,14 +74,14 @@ LOOKUP:
     brsh  UC
 
     subi  RES, 'A'               ; index 0..25
-    ldi   ZL, LOW  (BTAB*2)      ; *2 → byte‑adress i FLASH
+    ldi   ZL, LOW  (BTAB*2)      ; *2 → byte‑adress
     ldi   ZH, HIGH (BTAB*2)
     add   ZL, RES                ; Z = BTAB*2 + index
     adc   ZH, ZERO               ; ZERO = 0
     lpm   RES, Z                 ; RES = morsekod
     ret
 
-UC:                             ; okänt tecken → inget
+UC:                              ; okänt tecken → inget
     ldi   RES, 0
     ret
 
@@ -153,22 +169,6 @@ SILENT_TONE_LOOP:
     ret
 
 ; --------------------------------------------
-; DELAY: enkel dubbel-loop för tidsfördröjning
-; --------------------------------------------
-DELAY:
-    sbi   PORTB, 7               ; oscilloskop‑trigger (valfritt)
-    mov   r16, r18               ; r18 = antal iterationer
-DL_OUTER:
-    ldi   r17, 0x1F
-DL_INNER:
-    dec   r17
-    brne  DL_INNER
-    dec   r16
-    brne  DL_OUTER
-    cbi   PORTB, 7
-    ret
-
-; --------------------------------------------
 ; Data: morsekoder för A..Z (BTAB)
 ; --------------------------------------------
 BTAB:
@@ -186,7 +186,7 @@ MESSAGE:
 ; MORSE: huvudrutinen
 ; --------------------------------------------
 MORSE:
-    call  GET_CHAR      ; Läs första tecknet
+    call  GET_CHAR            ; läs första tecknet
 
 MAIN_LOOP:
     cpi   RES, 0
@@ -198,25 +198,18 @@ MAIN_LOOP:
     ; ———— Bokstav ————
     call  LOOKUP
     call  SEND
-
-    ldi   r18, 2        ; 2N tystnad mellan bokstäver
+    ldi   r18, 2              ; 2N tystnad mellan bokstäver
     call  NOBEEP
 
-    call  GET_CHAR      ; ← Hämta nästa tecken här!
+    call  GET_CHAR            ; HÄMTA nästa tecken här
     rjmp  MAIN_LOOP
 
 SPACE:
-    ldi   r18, 7        ; 7N tystnad mellan ord
+    ldi   r18, 7              ; 7N tystnad mellan ord
     call  NOBEEP
 
-    call  GET_CHAR      ; ← Och här också
+    call  GET_CHAR            ; HÄMTA nästa tecken här
     rjmp  MAIN_LOOP
 
 MORSE_END:
     ret
-
-
-
-
-
-
