@@ -1,11 +1,12 @@
-	.equ N = 200 ; Hastighet
-	.equ T = 10 ; Tonhöjd
+	.equ N = 300         
+	.equ T = 250
 
 	ldi r16,HIGH(RAMEND) ; set stack
 	out SPH,r16 ; for calls
 	ldi r16,LOW(RAMEND)
 	out SPL,r16
 	call HW_INIT
+	clr ZERO
 	call MORSE
 
 
@@ -13,6 +14,7 @@ HW_INIT:
 	sbi DDRB, 4
 	ldi letter_num, 0
 	ldi repeat, 3
+	.def ZERO = r1
 
 GET_CHAR:
 	ldi ZH, HIGH(MESSAGE*2)
@@ -48,7 +50,7 @@ LOOKUP:
     ldi  ZL, LOW(BTAB)     ; bytadress direkt
     ldi  ZH, HIGH(BTAB)
     add  ZL, res           ; Z = BTAB + index
-    adc  ZH, __zero_reg__  ; justera hög–byte om överfyllnad
+    adc  ZH, ZERO ;ustera hög–byte om överfyllnad
     lpm  res, Z            ; läs morsekod
     ret
 
@@ -83,6 +85,7 @@ send_after:
     ret
 
 
+
 BEEP:
     ; r18 = längd i N
     push r18
@@ -95,8 +98,12 @@ beep_loop:
 beep_tone_loop:
     sbi PORTB, 4
     rcall DELAY
+	rcall DELAY
+	rcall DELAY
     cbi PORTB, 4
     rcall DELAY
+	rcall DELAY
+	rcall DELAY
     dec r20
     brne beep_tone_loop
     dec r19
@@ -129,6 +136,7 @@ silent_tone_loop:
     pop r19
     pop r18
     ret
+
 
 BTAB:
 	.db $60,$88,$A8,$90,$40,$28,$D0,$08,$20,$78,$B0,$48,$E0,$A0,$F0,$68,$D8,$50,$10,$C0,$30,$18,$B8,$C8
