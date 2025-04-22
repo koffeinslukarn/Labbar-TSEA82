@@ -10,8 +10,8 @@
     .def beat        = r20     ; temporärt i ton‑loop
 
     ; --- Globala konstanter ---
-    .equ N = 300              ; hastighet (antal enheter per “dit”)
-    .equ T = 250              ; tonhöjd (antal DELAY‑iterationer per hög/låg)
+    .equ N = 300               ; hastighet (antal enheter per “dit”)
+    .equ T = 250               ; tonhöjd (antal DELAY‑iterationer per hög/låg)
 
 ; --------------------------------------------
 ; Start: initiera stack, hårdvara och kör MORSE
@@ -23,8 +23,8 @@
 
     call  HW_INIT
     call  MORSE
-DONE: ; evig loop när MORSE är klar
-    rjmp DONE
+DONE:
+    rjmp  DONE               ; evig loop när MORSE är klar
 
 ; --------------------------------------------
 ; HW_INIT: nollställ ZERO, initiera I/O & variabler
@@ -42,6 +42,7 @@ GET_CHAR:
     ldi   ZH, HIGH (MESSAGE*2)
     ldi   ZL, LOW  (MESSAGE*2)
     add   ZL, letter_num     ; förskjut med antal tidigare tecken
+    adc   ZH, ZERO           ; justera hög‑byte vid eventuell carry
     inc   letter_num
     lpm   res, Z             ; läs in i res
     ret
@@ -50,7 +51,7 @@ GET_CHAR:
 ; DELAY: enkel dubbel-loop för tidsfördröjning
 ; --------------------------------------------
 DELAY:
-    sbi   PORTB, 7           ; oscilloskop-trigger (kan tas bort)
+    sbi   PORTB, 7           ; oscilloskop‑trigger (kan tas bort)
     mov   r16, r18           ; r18 = antal “T”-iterationer
 delayYttreLoop:
     ldi   r17, 0x1F
@@ -188,10 +189,10 @@ MORSE:
 
 LOOP:
     cpi   res, 0
-    breq  end
+    breq  MORSE_END
 
     cpi   res, ' '
-    brne  LETTER
+    brne  MORSE_LETTER
 
     ; mellanslag → 7N tystnad
     ldi   r18, 7
@@ -199,7 +200,7 @@ LOOP:
     call  GET_CHAR
     rjmp  LOOP
 
-LETTER:
+MORSE_LETTER:
     call  LOOKUP
     call  SEND
 
@@ -210,5 +211,5 @@ LETTER:
     call  GET_CHAR
     rjmp  LOOP
 
-END:
+MORSE_END:
     ret
