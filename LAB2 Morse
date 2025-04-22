@@ -1,12 +1,159 @@
-.equ N ; Hastighet
-.equ T ; Tonhöjd
+	.equ N = 200 ; Hastighet
+	.equ T = 10 ; Tonhöjd
 
-HW_INIT:
-
-GET_CHAR:
-
-MORSE:
+	ldi r16,HIGH(RAMEND) ; set stack
+	out SPH,r16 ; for calls
+	ldi r16,LOW(RAMEND)
+	out SPL,r16
 	call HW_INIT
 	call GET_CHAR
+	call MORSE
+
+
+HW_INIT:
+	sbi DDRB, 4
+	ldi letter_num, 0
+	ldi repeat, 3
+
+GET_CHAR:
+	ldi ZH, HIGH(MESSAGE*2)
+	ldi ZL, LOW(MESSAGE*2)
+	add ZL, letter_num
+	inc letter_num
+	lpm res,Z
+	ret
 	
- 
+
+DELAY:
+	sbi PORTB,7 ; For oscillioscope
+	mov r16, r18 ; Decimal bas (T milliseconds)
+delayYttreLoop:
+	ldi r17,$1F
+delayInreLoop:
+	dec r17
+	brne delayInreLoop
+	dec r16
+	brne delayYttreLoop
+	cbi PORTB,7
+	ret
+
+	
+LOOKUP:
+    ; Anta att res innehåller ASCII-tecken (t.ex. 'A' = 65)
+    ; BTAB börjar på ascii 'A' = 65
+    cpi res, 'A'
+    brlo unknown_char
+    cpi res, 'Z' + 1
+    brsh unknown_char
+
+    ; Index = res - 'A'
+    subi res, 'A'
+    ldi ZH, HIGH(BTAB * 2)
+    ldi ZL, LOW(BTAB * 2)
+    add ZL, res
+    lpm res, Z
+    ret
+
+unknown_char:
+    ; Om det är okänt tecken, returnera noll (mellanslag kan hanteras i framtida uppgift)
+    ldi res, 0
+    ret
+
+SEND:
+    mov r18, res      ; r18 innehåller kod att skicka
+send_loop:
+    lsl r18           ; skjut vänster, MSB → Carry
+    brcc short_beep   ; om carry == 0, kort pip
+
+    ; Långt pip (bit = 1)
+    ldi r18, 3
+    call BEEP
+    rjmp next_bit
+
+short_beep:
+    ldi r18, 1
+    call BEEP
+
+next_bit:
+    ldi r18, 1        ; 1 tidsenhet tystnad
+    call NOBEEP
+
+    tst r18           ; kolla om kod är slut (blivit noll efter skiftningar)
+    brne send_loop
+    ret
+
+
+BEEP:
+    ; r18 = längd i N
+    push r18
+    push r19
+
+    mov r19, r18
+beep_loop:
+    ldi r18, T
+beep_tone_loop:
+    sbi PORTB, 4
+    rcall DELAY
+    cbi PORTB, 4
+    rcall DELAY
+    dec r18
+    brne beep_tone_loop
+    dec r19
+    brne beep_loop
+
+    pop r19
+    pop r18
+    ret
+
+
+NOBEEP:
+    ; r18 = längd i N
+    push r18
+    mov r19, r18
+silent_loop:
+    ldi r18, T
+silent_tone_loop:
+    rcall DELAY
+    rcall DELAY
+    dec r18
+    brne silent_tone_loop
+    dec r19
+    brne silent_loop
+    pop r18
+    ret
+
+
+BTAB:
+	.db $60,$88,$A8,$90,$40,$28,$D0,$08,$20,$78,$B0,$48,$E0,$A0,$F0,$68,$D8,$50,$10,$C0,$30,$18,$B8,$C8
+
+	.def res = r16
+	.def letter_num = r17
+	.def repeat = r19
+
+
+MESSAGE:
+	.db "DATORTEKNIK", $00
+
+
+MORSE:
+    call GET_CHAR
+loop:
+    cpi res, 0
+    breq END
+    cpi res, ' '         ; ASCII $20
+    brne not_space
+    ldi r18, 7           ; 7N tystnad mellan ord
+    call NOBEEP
+    call GET_CHAR
+    rjmp loop
+
+not_space:
+    call LOOKUP
+    call SEND
+    ldi r18, 2           ; 2N tystnad mellan tecken
+    call NOBEEP
+    call GET_CHAR
+    rjmp loop
+
+END:
+    ret
