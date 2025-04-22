@@ -6,7 +6,6 @@
 	ldi r16,LOW(RAMEND)
 	out SPL,r16
 	call HW_INIT
-	call GET_CHAR
 	call MORSE
 
 
