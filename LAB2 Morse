@@ -38,24 +38,22 @@ delayInreLoop:
 
 	
 LOOKUP:
-    ; Anta att res innehåller ASCII-tecken (t.ex. 'A' = 65)
-    ; BTAB börjar på ascii 'A' = 65
+    ; res = ASCII‑kod för bokstav
     cpi res, 'A'
     brlo unknown_char
-    cpi res, 'Z' + 1
+    cpi res, 'Z'+1
     brsh unknown_char
 
-    ; Index = res - 'A'
-    subi res, 'A'
-    ldi ZH, HIGH(BTAB * 2)
-    ldi ZL, LOW(BTAB * 2)
-    add ZL, res
-    lpm res, Z
+    subi res, 'A'          ; index = 0..25
+    ldi  ZL, LOW(BTAB)     ; bytadress direkt
+    ldi  ZH, HIGH(BTAB)
+    add  ZL, res           ; Z = BTAB + index
+    adc  ZH, __zero_reg__  ; justera hög–byte om överfyllnad
+    lpm  res, Z            ; läs morsekod
     ret
 
 unknown_char:
-    ; Om det är okänt tecken, returnera noll (mellanslag kan hanteras i framtida uppgift)
-    ldi res, 0
+    ldi res, 0             ; okänt → 0 (ingen kod)
     ret
 
 SEND:
