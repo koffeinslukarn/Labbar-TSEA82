@@ -1,215 +1,214 @@
-; ============================================
-; Morsesändare för “DATORTEKNIK” på ATmega16A
-; ============================================
+.equ T = 80	; Tone frequency constant
+.equ N = 150	; Morse Delay constant (frequency we send characters at)
 
-    ; --- Registeralias högst upp ---
-    .def ZERO        = r1      ; alltid 0 (CLR i HW_INIT)
-    .def RES         = r16     ; GET_CHAR‑resultat & LOOKUP‑output
-    .def LETTER_NUM  = r17     ; index i MESSAGE
-    .def TMP         = r19     ; temporärt i SEND & BEEP/NOBEEP
-    .def BEAT        = r20     ; temporärt i BEEP/NOBEEP
+STR: 
+	.db "DATORTEKNIK", 0
 
-    ; --- Globala konstanter ---
-    .equ N = 300               ; hastighet (antal enheter per “dit”)
-    .equ T = 250               ; tonhöjd (antal DELAY‑iterationer per hög/låg)
+;TODO space ger E
+;TODO H ger S
 
-; --------------------------------------------
-; Start: initiera stack och hårdvara, kör MORSE
-; --------------------------------------------
-    ldi   r16, HIGH(RAMEND)
-    out   SPH, r16
-    ldi   r16, LOW (RAMEND)
-    out   SPL, r16
+; BTAB – Morse binärkod för A–Z (0x41–0x5A)
+; Index = ASCII - 0x41
+.equ BTAB_INVALID = 27
 
-    call  HW_INIT
-    call  MORSE
-
-DONE:                      ; evig loop när MORSE är klar
-    rjmp  DONE
-
-; --------------------------------------------
-; HW_INIT: nollställ ZERO, initiera I/O & variabler
-; --------------------------------------------
-HW_INIT:
-    clr   ZERO               ; r1 = 0
-    sbi   DDRB, 4            ; PB4 som output (högtalare)
-    ldi   LETTER_NUM, 0      ; börja på första tecknet i MESSAGE
-    ret
-
-; --------------------------------------------
-; GET_CHAR: läs nästa byte ur FLASH-strängen MESSAGE
-; --------------------------------------------
-GET_CHAR:
-    ldi   ZH, HIGH (MESSAGE*2)
-    ldi   ZL, LOW  (MESSAGE*2)
-    add   ZL, LETTER_NUM     ; byte‑offset = base*2 + index
-    adc   ZH, ZERO           ; justera high‑byte om carry
-    inc   LETTER_NUM
-    lpm   RES, Z             ; läs ASCII in i RES
-    ret
-
-; --------------------------------------------
-; DELAY: enkel dubbel-loop för tidsfördröjning
-; --------------------------------------------
-DELAY:
-    sbi   PORTB, 7           ; oscilloskop‑trigger (valfritt)
-    mov   r16, r18           ; r18 = antal “T”-iterationer
-DL_OUTER:
-    ldi   r17, 0x1F
-DL_INNER:
-    dec   r17
-    brne  DL_INNER
-    dec   r16
-    brne  DL_OUTER
-    cbi   PORTB, 7
-    ret
-
-; --------------------------------------------
-; LOOKUP: ASCII ’A’–’Z’ → morsekod via BTAB
-; --------------------------------------------
-LOOKUP:
-    cpi   RES, 'A'
-    brlo  UC
-    cpi   RES, 'Z'+1
-    brsh  UC
-
-    subi  RES, 'A'               ; index 0..25
-    ldi   ZL, LOW  (BTAB*2)      ; *2 → byte‑adress
-    ldi   ZH, HIGH (BTAB*2)
-    add   ZL, RES                ; Z = BTAB*2 + index
-    adc   ZH, ZERO               ; ZERO = 0
-    lpm   RES, Z                 ; RES = morsekod
-    ret
-
-UC:                              ; okänt tecken → inget
-    ldi   RES, 0
-    ret
-
-; --------------------------------------------
-; SEND: skifta ut morsekod, anropa BEEP/NOBEEP
-; --------------------------------------------
-SEND:
-    mov   TMP, RES               ; TMP = morsekod
-
-SEND_LOOP:
-    lsl   TMP                    ; MSB → Carry
-    brcc  SHORT                  ; om Carry=0 → kort pip
-
-    ; —— Dah (3N) ——
-    ldi   r18, 3
-    call  BEEP
-    rjmp  AFTER
-
-SHORT:
-    ; —— Dit (1N) ——
-    ldi   r18, 1
-    call  BEEP
-
-AFTER:
-    ; mellan bitar = 1N tystnad
-    ldi   r18, 1
-    call  NOBEEP
-
-    tst   TMP                    ; fler bitar?
-    brne  SEND_LOOP
-    ret
-
-; --------------------------------------------
-; BEEP: generera pip under r18 × N (kort/lång)
-; --------------------------------------------
-BEEP:
-    push  r18
-    push  TMP
-    push  BEAT
-
-    mov   TMP, r18               ; TMP = antal N‑enheter
-
-BEEP_LOOP:
-    ldi   BEAT, T                ; BEAT = ton‑frekvens‑loop
-TONE_LOOP:
-    sbi   PORTB, 4
-    rcall DELAY
-    cbi   PORTB, 4
-    rcall DELAY
-    dec   BEAT
-    brne  TONE_LOOP
-
-    dec   TMP
-    brne  BEEP_LOOP
-
-    pop   BEAT
-    pop   TMP
-    pop   r18
-    ret
-
-; --------------------------------------------
-; NOBEEP: motsvarande tystnad under r18 × N
-; --------------------------------------------
-NOBEEP:
-    push  r18
-    push  TMP
-    push  BEAT
-
-    mov   TMP, r18               ; TMP = antal N‑enheter
-
-SILENT_LOOP:
-    ldi   BEAT, T
-SILENT_TONE_LOOP:
-    rcall DELAY
-    rcall DELAY
-    dec   BEAT
-    brne  SILENT_TONE_LOOP
-
-    dec   TMP
-    brne  SILENT_LOOP
-
-    pop   BEAT
-    pop   TMP
-    pop   r18
-    ret
-
-; --------------------------------------------
-; Data: morsekoder för A..Z (BTAB)
-; --------------------------------------------
 BTAB:
-    .db $60,$88,$A8,$90,$40,$28,$D0,$08,$20,$78
-    .db $B0,$48,$E0,$A0,$F0,$68,$D8,$50,$10,$C0
-    .db $30,$18,$B8,$C8
+	.db 0x60,0x88, 0xA8, 0x90, 0x40, 0x28, 0xD0, 0x08, 0x20, 0x78, 0xB0, 0x48, 0xE0, 0xA0, 0xF0, 0x68, 0xD8, 0x50, 0x10, 0xC0,  0x30,  0x18, 0x70, 0x98, 0xB8, 0xC8
 
-; --------------------------------------------
-; Text att sända i morse — avslutas med 0
-; --------------------------------------------
-MESSAGE:
-    .db "DATORTEKNIK",0
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;		START OF LOGIC	;;;
+;;;		PROPERTY OF		;;;
+;;;		BIG BIRGER		;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; --------------------------------------------
-; MORSE: huvudrutinen
-; --------------------------------------------
+; Initialize hardware
+HW_INIT:
+	; PIN A - Ingång
+	sbi DDRB, 7      ; sätter pin 7B som utgång
+
+; Huvudloop som sänder en hel sträng
 MORSE:
-    call  GET_CHAR            ; läs första tecknet
+	; pushar alla register vi använder till stacken (inklusive Z etc)
+	; De måste enl instruktionerna vara opåverkade (höhö som jag ;) )
+	; efter vi kört programmet	
+	push r16
+	push r30
+	push r31
 
-MAIN_LOOP:
-    cpi   RES, 0
-    breq  MORSE_END
+	ldi r30, low(STR << 1)	; Ladda ZL-pekare (för strängen)
+	ldi r31, high(STR << 1)	; Ladda ZH-pekare
+	
+	call GET_CHAR		; Get first character in string
+	call BEEP_CHARS
 
-    cpi   RES, ' '
-    breq  SPACE
+	pop r31
+	pop r30
+	pop r16
 
-    ; ———— Bokstav ————
-    call  LOOKUP
-    call  SEND
-    ldi   r18, 2              ; 2N tystnad mellan bokstäver
-    call  NOBEEP
+	rjmp MORSE			; Loop again
 
-    call  GET_CHAR            ; HÄMTA nästa tecken här
-    rjmp  MAIN_LOOP
+; Logic for sending one character
+; Call 'GET_CHAR' first
+BEEP_CHARS:
+	; We have ASCII-character in r16
+	call LOOKUP			; Convert character to morse representation
+	; Binary Morse-representation will now be in r16
 
-SPACE:
-    ldi   r18, 7              ; 7N tystnad mellan ord
-    call  NOBEEP
+	call SEND_CHAR
+	call NOBEEP			; Silence over 2N
+	call NOBEEP
 
-    call  GET_CHAR            ; HÄMTA nästa tecken här
-    rjmp  MAIN_LOOP
+	CALL GET_CHAR		; Get next character in string
+	cpi r16, 0			; Loop until no more chars (r16 == 0)
+	brne BEEP_CHARS
 
-MORSE_END:
-    ret
+; Get next ASCII-character from string
+; Next character byte is saved to r16
+GET_CHAR:
+	lpm r16, Z+			; Read character byte from Z-pointer, then increment pointer
+	ret
+
+; Translates ASCII-character to binary
+; Character in r16
+; Output morse representation in r16
+LOOKUP:
+	push r1
+	push r30			; Store Z-pointer on stack
+	push r31
+	
+	; Subtrahera ASCII-kod för första bokstaven 'A' ($41)
+	subi r16, 'A'		; r16 = index i BTAB
+
+	;Branch to INVALID if r16 is < 0 (maybe space character?)
+	cpi r16, 0
+	brlt LOOKUP_INVALID
+	;Branch to INVALID if r16 is >= 27 (invalid character)
+	cpi r16, BTAB_INVALID
+	brsh LOOKUP_INVALID
+
+	; Ladda addressen till BTAB i Z-pointer
+	ldi r30, low(BTAB << 1)
+	ldi r31, high(BTAB << 1)
+
+    ; Varje steg i BTAB är egentligen 2 steg, därav multiplicera offset med 2
+    lsl  r16            ; r16 = r16 * 2
+
+	; Add r16 offset to Z-pointer
+	clr r1
+	add r30, r16
+	add r31, r1
+
+	; Read Morse representation from BTAB
+	lpm r16, Z
+
+LOOKUP_DONE:	
+	pop r31
+	pop r30 
+	pop r1
+	ret
+
+LOOKUP_INVALID:
+	ldi r16, $FF
+	rjmp LOOKUP_DONE
+	
+; Sends a character
+; Character Morse representation in r16
+SEND_CHAR:
+	call SEND_BITS_LOOP
+
+	call NOBEEP			; 1N Silence, space between next character
+	ret
+	
+SEND_BITS_LOOP:
+	call NOBEEP
+
+	; Check if r16 is INVALID ($FF), then play space bit
+	cpi r16, $FF
+	breq SEND_SPACE_BIT
+
+	lsl r16		 			; Bitshift character left
+	; Bit to send is now found in carry flag
+	call SEND_BIT
+	
+	cpi r16, $80				; Keep looping until r16 == 10000000 == $80
+	brne SEND_BITS_LOOP			; as it marks end bit
+	
+	ret
+
+SEND_SPACE_BIT:
+	; Play silence for 7N
+	call NOBEEP3
+	call NOBEEP3
+	call NOBEEP
+	ret
+
+; Uses carry flag 
+SEND_BIT:
+	brcc BEEP			; Branch to beep if carry is not set
+	brcs BEEP3			; Branch to long beep if carry is set
+	ret
+
+BEEP:
+	push r18
+	ldi r18, N    ;oopar N gånger
+BEEPLOOP:
+	;Vi växlar mellan 1 och 0 med en frekvens på 500 hz
+	cbi PORTB, 7; sätt utgången till 1
+	call DELAY
+	sbi PORTB, 7; sättutgången till 0
+	call DELAY
+	dec r18 ; minskar loopen med et
+
+	cpi r18,$00		; Sluta loopa då r18 == $00
+	brne BEEPLOOP	; om
+	pop r18
+	ret
+
+BEEP3:
+	call BEEP
+	call BEEP
+	call BEEP
+	ret
+
+NOBEEP:
+	push r18
+	ldi r18, N  ; Vi loopar N gånger
+NOBEEPLOOP:
+	cbi PORTB, 7; sättutgången till 0
+	call DELAY
+	call DELAY
+	
+	dec r18 ; minskar loopen med et
+
+	cpi r18,$00		; Sluta loopa då r18 == $00
+	brne NOBEEPLOOP
+	pop r18
+	ret
+
+NOBEEP3:
+	call NOBEEP
+	call NOBEEP
+	call NOBEEP
+	ret
+
+; Rutinen DELAY är en vänteloop som samtidigt
+; avger en skvallersignal på PB7.
+; PB7 är hög (jag med) när rutinen körs
+;
+; Med angivet värde i r16 väntar rutinen
+; ungefär en millisekund @ 1 MHz
+;
+; PORTB måste konfigureras separat.
+DELAY:
+	push	r19
+	push	r17
+	ldi		r19,10		; Decimal bas
+delayYttreLoop:
+	ldi		r17,$1F
+delayInreLoop:
+	dec		r17
+	brne	delayInreLoop
+	dec		r19
+	brne	delayYttreLoop
+	pop		r17
+	pop		r19
+	ret
