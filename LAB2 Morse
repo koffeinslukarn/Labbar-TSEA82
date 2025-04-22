@@ -1,174 +1,211 @@
-	.equ N = 300         
-	.equ T = 250
-	.def ZERO = r1
+; ============================================
+; Morsesändare för “DATORTEKNIK”
+; ============================================
 
-	ldi r16,HIGH(RAMEND) ; set stack
-	out SPH,r16 ; for calls
-	ldi r16,LOW(RAMEND)
-	out SPL,r16
-	call HW_INIT
-	call MORSE
+    .def ZERO        = r1      ; alltid 0 (clr i HW_INIT)
+    .def res         = r16     ; GET_CHAR‐result & LOOKUP‐output
+    .def letter_num  = r17     ; index i MESSAGE
+    .def tmp         = r19     ; temporärt i SEND & BEEP
+    .def beat        = r20     ; temporärt i ton‐loop
 
+    .equ N = 300              ; hastighet (antal enheter per “dit”)
+    .equ T = 250              ; tonhöjd (antal DELAY‐iterationer per hög/låg)
 
+; --------------------------------------------
+; Start: initiera stack och hårdvara, kör MORSE
+; --------------------------------------------
+    ldi   r16, HIGH(RAMEND)
+    out   SPH, r16
+    ldi   r16, LOW(RAMEND)
+    out   SPL, r16
+
+    call  HW_INIT
+    call  MORSE
+    rjmp  .              ; evig loop när MORSE är klar
+
+; --------------------------------------------
+; HW_INIT: initiera ZERO, I/O och variabler
+; --------------------------------------------
 HW_INIT:
-	clr ZERO
-	sbi DDRB, 4
-	ldi letter_num, 0
-	ldi repeat, 3
-	
+    clr   ZERO            ; r1 = 0
+    sbi   DDRB, 4         ; PB4 som output (högtalare)
+    ldi   letter_num, 0   ; börja på första tecknet i MESSAGE
+    ret
 
+; --------------------------------------------
+; GET_CHAR: läs nästa byte ur FLASH-strängen MESSAGE
+; --------------------------------------------
 GET_CHAR:
-	ldi ZH, HIGH(MESSAGE*2)
-	ldi ZL, LOW(MESSAGE*2)
-	add ZL, letter_num
-	inc letter_num
-	lpm res,Z
-	ret
-	
+    ldi   ZH, HIGH(MESSAGE*2)
+    ldi   ZL, LOW (MESSAGE*2)
+    add   ZL, letter_num
+    inc   letter_num
+    lpm   res, Z
+    ret
 
+; --------------------------------------------
+; DELAY: enkel dubbel-loop för tidsfördröjning
+; --------------------------------------------
 DELAY:
-	sbi PORTB,7 ; For oscillioscope
-	mov r16, r18 ; Decimal bas (T milliseconds)
+    sbi   PORTB, 7        ; för oscilloskoptrigger (kan tas bort)
+    mov   r16, r18        ; r18 = antal “T”-iterationer
 delayYttreLoop:
-	ldi r17,$1F
+    ldi   r17, 0x1F
 delayInreLoop:
-	dec r17
-	brne delayInreLoop
-	dec r16
-	brne delayYttreLoop
-	cbi PORTB,7
-	ret
+    dec   r17
+    brne  delayInreLoop
+    dec   r16
+    brne  delayYttreLoop
+    cbi   PORTB, 7
+    ret
 
+; --------------------------------------------
+; LOOKUP: konvertera ASCII ’A’–’Z’ → BTAB-index
+; --------------------------------------------
 LOOKUP:
-    ; res = ASCII‑kod för bokstav
-    cpi res, 'A'
-    brlo unknown_char
-    cpi res, 'Z'+1
-    brsh unknown_char
+    cpi   res, 'A'
+    brlo  unknown_char
+    cpi   res, 'Z'+1
+    brsh  unknown_char
 
-    subi res, 'A'            ; index = 0..25
-    ldi  ZL, LOW(BTAB*2)     ; *2 för word→byte‑adress
-    ldi  ZH, HIGH(BTAB*2)
-    add  ZL, res             ; Z = BTAB*2 + index
-    adc  ZH, ZERO            ; ZERO=r1=0
-    lpm  res, Z              ; läs rätt morsekod
+    subi  res, 'A'             ; index 0..25
+    ldi   ZL, LOW (BTAB*2)     ; *2 → byteadress i FLASH
+    ldi   ZH, HIGH(BTAB*2)
+    add   ZL, res              ; Z = BTAB*2 + index
+    adc   ZH, ZERO             ; ZERO = 0
+    lpm   res, Z               ; läs morsekod in i res
     ret
 
 unknown_char:
-    ldi res, 0               ; okänt → 0
+    ldi   res, 0               ; okänt tecken → inget
     ret
 
+; --------------------------------------------
+; SEND: skifta ut morsekod, kalla BEEP/NOBEEP
+; --------------------------------------------
 SEND:
-    mov r19, res      ; ★ r19 håller morsekoden
+    mov   tmp, res             ; tmp = morsekoden
 
 send_loop:
-    lsl r19           ; skifta vänster → C‑flaggan blir biten
-    brcc send_short   ; om carry=0 → kort pip
+    lsl   tmp                  ; MSB → C‑flagga
+    brcc  send_short           ; om 0 → kort pip
 
-    ; ———— Lång pip ————
-    ldi r18, 3        ; ★ r18 = 3N
-    call BEEP
-    rjmp send_after
+    ; ———— Dah (3N) ————
+    ldi   r18, 3
+    call  BEEP
+    rjmp  send_after
 
 send_short:
-    ; ———— Kort pip ————
-    ldi r18, 1        ; ★ r18 = 1N
-    call BEEP
+    ; ———— Dit (1N) ————
+    ldi   r18, 1
+    call  BEEP
 
 send_after:
-    ldi r18, 1        ; 1N tystnad
-    call NOBEEP
+    ; mellan delar (1N tystnad)
+    ldi   r18, 1
+    call  NOBEEP
 
-    tst r19           ; om fortfarande bitar kvar?
-    brne send_loop
-
+    tst   tmp                  ; fler bitar kvar?
+    brne  send_loop
     ret
 
-
-
+; --------------------------------------------
+; BEEP: generera pip under r18 × N (kort eller lång)
+; --------------------------------------------
 BEEP:
-    ; r18 = längd i N
-    push r18
-    push r19
-    push r20
+    push  r18
+    push  tmp
+    push  beat
 
-    mov r19, r18      ; antal N-enheter
+    mov   tmp, r18             ; antal N‑enheter
+
 beep_loop:
-    ldi r20, T        ; TONFREKVENS till r20 – INTE r18!
+    ldi   beat, T              ; tonfrekvens
 beep_tone_loop:
-    sbi PORTB, 4
+    sbi   PORTB, 4
     rcall DELAY
-	rcall DELAY
-	rcall DELAY
-    cbi PORTB, 4
+    cbi   PORTB, 4
     rcall DELAY
-	rcall DELAY
-	rcall DELAY
-    dec r20
-    brne beep_tone_loop
-    dec r19
-    brne beep_loop
+    dec   beat
+    brne  beep_tone_loop
 
-    pop r20
-    pop r19
-    pop r18
+    dec   tmp
+    brne  beep_loop
+
+    pop   beat
+    pop   tmp
+    pop   r18
     ret
 
-
+; --------------------------------------------
+; NOBEEP: motsvarande tystnad under r18 × N
+; --------------------------------------------
 NOBEEP:
-    ; r18 = längd i N
-    push r18
-    push r19
-    push r20
+    push  r18
+    push  tmp
+    push  beat
 
-    mov r19, r18      ; antal N-enheter
+    mov   tmp, r18             ; antal N‑enheter
+
 silent_loop:
-    ldi r20, T        ; tonfrekvensen, men här används för tyst timing
+    ldi   beat, T
 silent_tone_loop:
     rcall DELAY
     rcall DELAY
-    dec r20
-    brne silent_tone_loop
-    dec r19
-    brne silent_loop
+    dec   beat
+    brne  silent_tone_loop
 
-    pop r20
-    pop r19
-    pop r18
+    dec   tmp
+    brne  silent_loop
+
+    pop   beat
+    pop   tmp
+    pop   r18
     ret
 
-
+; --------------------------------------------
+; Data: morse‑koder för A..Z
+; --------------------------------------------
 BTAB:
-	.db $60,$88,$A8,$90,$40,$28,$D0,$08,$20,$78,$B0,$48,$E0,$A0,$F0,$68,$D8,$50,$10,$C0,$30,$18,$B8,$C8
+    .db $60,$88,$A8,$90,$40,$28,$D0,$08,$20,$78
+    .db $B0,$48,$E0,$A0,$F0,$68,$D8,$50,$10,$C0
+    .db $30,$18,$B8,$C8
 
-	.def res = r16
-	.def letter_num = r17
-	.def repeat = r19
-
-
+; --------------------------------------------
+; Text att sända i morse (avslutas med 0)
+; --------------------------------------------
 MESSAGE:
-	.db "DATORTEKNIK", $00
+    .db "DATORTEKNIK", 0
 
-
+; --------------------------------------------
+; MORSE: huvudloopen
+; --------------------------------------------
 MORSE:
-    call GET_CHAR
-loop:
-    cpi res, 0
-    breq END
-    cpi res, ' '         ; ASCII $20
-    brne not_space
-    ldi r18, 7           ; 7N tystnad mellan ord
-    call NOBEEP
-    call GET_CHAR
-    rjmp loop
+    call  GET_CHAR
 
-not_space:
-    call LOOKUP
-    call SEND
-    ldi r18, 2           ; 2N tystnad mellan tecken
-    call NOBEEP
-    call GET_CHAR
-    rjmp loop
+.loop:
+    cpi   res, 0
+    breq  .end
 
-END:
+    cpi   res, ' '
+    brne  .letter
+
+    ; mellanslag → 7N tystnad
+    ldi   r18, 7
+    call  NOBEEP
+    call  GET_CHAR
+    rjmp  .loop
+
+.letter:
+    call  LOOKUP
+    call  SEND
+
+    ; mellan bokstäver → 2N tystnad
+    ldi   r18, 2
+    call  NOBEEP
+
+    call  GET_CHAR
+    rjmp  .loop
+
+.end:
     ret
