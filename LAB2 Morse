@@ -24,7 +24,7 @@
     call  HW_INIT
     call  MORSE
 DONE: ; evig loop när MORSE är klar
-    rjump DONE
+    rjmp DONE
 
 ; --------------------------------------------
 ; HW_INIT: nollställ ZERO, initiera I/O & variabler
@@ -186,20 +186,20 @@ MESSAGE:
 MORSE:
     call  GET_CHAR
 
-.loop:
+LOOP:
     cpi   res, 0
-    breq  .end
+    breq  end
 
     cpi   res, ' '
-    brne  .letter
+    brne  LETTER
 
     ; mellanslag → 7N tystnad
     ldi   r18, 7
     call  NOBEEP
     call  GET_CHAR
-    rjmp  .loop
+    rjmp  LOOP
 
-.letter:
+LETTER:
     call  LOOKUP
     call  SEND
 
@@ -208,7 +208,7 @@ MORSE:
     call  NOBEEP
 
     call  GET_CHAR
-    rjmp  .loop
+    rjmp  LOOP
 
-.end:
+END:
     ret
