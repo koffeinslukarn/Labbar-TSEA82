@@ -59,26 +59,29 @@ unknown_char:
     ret
 
 SEND:
-    mov r18, res      ; r18 innehåller kod att skicka
+    mov r19, res      ; ★ r19 håller morsekoden
+
 send_loop:
-    lsl r18           ; skjut vänster, MSB → Carry
-    brcc short_beep   ; om carry == 0, kort pip
+    lsl r19           ; skifta vänster → C‑flaggan blir biten
+    brcc send_short   ; om carry=0 → kort pip
 
-    ; Långt pip (bit = 1)
-    ldi r18, 3
+    ; ———— Lång pip ————
+    ldi r18, 3        ; ★ r18 = 3N
     call BEEP
-    rjmp next_bit
+    rjmp send_after
 
-short_beep:
-    ldi r18, 1
+send_short:
+    ; ———— Kort pip ————
+    ldi r18, 1        ; ★ r18 = 1N
     call BEEP
 
-next_bit:
-    ldi r18, 1        ; 1 tidsenhet tystnad
+send_after:
+    ldi r18, 1        ; 1N tystnad
     call NOBEEP
 
-    tst r18           ; kolla om kod är slut (blivit noll efter skiftningar)
+    tst r19           ; om fortfarande bitar kvar?
     brne send_loop
+
     ret
 
 
