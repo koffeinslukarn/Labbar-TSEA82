@@ -186,27 +186,37 @@ MESSAGE:
 ; MORSE: huvudrutinen
 ; --------------------------------------------
 MORSE:
-    call  GET_CHAR
+    call GET_CHAR         ; hämta första tecknet
 
-MAIN_LOOP:
-    cpi   RES, 0
+.LOOP:
+    cpi   res, 0          ; slut på strängen?
     breq  MORSE_END
 
-    cpi   RES, ' '
-    breq  SPACE
+    cpi   res, ' '        ; är det mellanslag?
+    breq  .SPACE
 
-    ; bokstav → översätt & skicka
+    ; ———— Bokstav ————
     call  LOOKUP
     call  SEND
-    ldi   r18, 2              ; 2N tystnad mellan bokstäver
+    ldi   r18, 2          ; 2N tystnad mellan bokstäver
     call  NOBEEP
-    rjmp  MAIN_LOOP
 
-SPACE:
-    ldi   r18, 7              ; 7N tystnad mellan ord
+    call  GET_CHAR        ; <— hämta nästa tecken
+    rjmp  .LOOP
+
+.SPACE:
+    ldi   r18, 7          ; 7N tystnad mellan ord
     call  NOBEEP
-    call  GET_CHAR
-    rjmp  MAIN_LOOP
+
+    call  GET_CHAR        ; <— hämta nästa tecken
+    rjmp  .LOOP
 
 MORSE_END:
     ret
+
+
+
+
+
+
+
