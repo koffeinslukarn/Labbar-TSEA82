@@ -86,20 +86,22 @@ BEEP:
     ; r18 = längd i N
     push r18
     push r19
+    push r20
 
-    mov r19, r18
+    mov r19, r18      ; antal N-enheter
 beep_loop:
-    ldi r18, T
+    ldi r20, T        ; TONFREKVENS till r20 – INTE r18!
 beep_tone_loop:
     sbi PORTB, 4
     rcall DELAY
     cbi PORTB, 4
     rcall DELAY
-    dec r18
+    dec r20
     brne beep_tone_loop
     dec r19
     brne beep_loop
 
+    pop r20
     pop r19
     pop r18
     ret
@@ -108,19 +110,24 @@ beep_tone_loop:
 NOBEEP:
     ; r18 = längd i N
     push r18
-    mov r19, r18
+    push r19
+    push r20
+
+    mov r19, r18      ; antal N-enheter
 silent_loop:
-    ldi r18, T
+    ldi r20, T        ; tonfrekvensen, men här används för tyst timing
 silent_tone_loop:
     rcall DELAY
     rcall DELAY
-    dec r18
+    dec r20
     brne silent_tone_loop
     dec r19
     brne silent_loop
+
+    pop r20
+    pop r19
     pop r18
     ret
-
 
 BTAB:
 	.db $60,$88,$A8,$90,$40,$28,$D0,$08,$20,$78,$B0,$48,$E0,$A0,$F0,$68,$D8,$50,$10,$C0,$30,$18,$B8,$C8
