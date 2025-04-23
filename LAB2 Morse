@@ -1,35 +1,52 @@
-.equ T = 80	; Tone frequency constant
-.equ N = 150	; Morse Delay constant (frequency we send characters at)
 
-STR: 
-	.db "DATORTEKNIK", 0
 
-;TODO space ger E
-;TODO H ger S
+.equ T = 20			; Tonhöjd
+.equ N = 80			; Delaytime
+	
+STR: .db "VI HETER DAMDA", 0
+;STR: .db "DATORTEKNIK", 0
+
 
 ; BTAB – Morse binärkod för A–Z (0x41–0x5A)
 ; Index = ASCII - 0x41
 .equ BTAB_INVALID = 27
-
 BTAB:
-	.db 0x60,0x88, 0xA8, 0x90, 0x40, 0x28, 0xD0, 0x08, 0x20, 0x78, 0xB0, 0x48, 0xE0, 0xA0, 0xF0, 0x68, 0xD8, 0x50, 0x10, 0xC0,  0x30,  0x18, 0x70, 0x98, 0xB8, 0xC8
+	.db 0x60; A
+	.db 0x88; B
+	.db 0xA8; C
+	.db 0x90; D
+	.db 0x40; E
+	.db 0x28; F
+	.db 0xD0; G
+	.db 0x08; H 
+	.db 0x20; I
+	.db 0x78; J
+	.db 0xB0; K
+	.db 0x48; L
+	.db 0xE0; M
+	.db 0xA0; N
+	.db 0xF0; O
+	.db 0x68; P
+	.db 0xD8; Q
+	.db 0x50; R
+	.db 0x10; S
+	.db 0xC0; T
+	.db 0x30; U
+	.db 0x18; V
+	.db 0x70; W
+	.db 0x98; X
+	.db 0xB8; Y
+	.db 0xC8; Z
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;		START OF LOGIC	;;;
-;;;		PROPERTY OF		;;;
-;;;		BIG BIRGER		;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Initialize hardware
 HW_INIT:
-	; PIN A - Ingång
 	sbi DDRB, 7      ; sätter pin 7B som utgång
 
 ; Huvudloop som sänder en hel sträng
+; pushar alla register vi använder till stacken (inklusive Z etc)
+
 MORSE:
-	; pushar alla register vi använder till stacken (inklusive Z etc)
-	; De måste enl instruktionerna vara opåverkade (höhö som jag ;) )
-	; efter vi kört programmet	
 	push r16
 	push r30
 	push r31
@@ -149,7 +166,7 @@ SEND_BIT:
 
 BEEP:
 	push r18
-	ldi r18, N    ;oopar N gånger
+	ldi r18, N  ; Vi loopar N gånger
 BEEPLOOP:
 	;Vi växlar mellan 1 och 0 med en frekvens på 500 hz
 	cbi PORTB, 7; sätt utgången till 1
@@ -190,14 +207,7 @@ NOBEEP3:
 	call NOBEEP
 	ret
 
-; Rutinen DELAY är en vänteloop som samtidigt
-; avger en skvallersignal på PB7.
-; PB7 är hög (jag med) när rutinen körs
-;
-; Med angivet värde i r16 väntar rutinen
-; ungefär en millisekund @ 1 MHz
-;
-; PORTB måste konfigureras separat.
+
 DELAY:
 	push	r19
 	push	r17
