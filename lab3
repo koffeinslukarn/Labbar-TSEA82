@@ -1,0 +1,65 @@
+
+	.dseg
+	.org SRAM_START
+
+	TIME: .byte 4
+	POS: .byte 1
+
+	.cseg
+	.org 0x0000
+	jmp MAIN
+	.org 0x0002
+	jmp EXT_INT0
+	.org 0x0004
+	jmp EXT_INT1
+
+	.equ TIME0 = $100
+	.equ TIME1 = $101
+	.equ TIME2 = $110
+	.equ TIME3 = $111
+
+	
+
+MAIN:
+	ldi r16, HIGH(RAMEND) ; INIT stack
+	out SPH, r16
+	ldi r16, LOW(RAMEND)
+	out SPL, r16
+	; Configure flanks
+	ldi r16, (1<<ISC01)|(0<<ISC00)|(1<<ISC11)|(0<<ISC10)
+	out MCUCR, r16
+	ldi r16, (1<<INT1)|(1<<INT0)
+	out GICR, r16
+	sei ; enable interups
+MAIN_LOOP:
+	rjmp MAIN_LOOP
+
+
+EXT_INT0:
+	push r16
+	in r16, SREG
+	push r16
+	; What to do
+	pop r16
+	out SREG, r16
+	pop r16
+	reti
+
+EXT_INT1:
+	push r16
+	in r16, SREG
+	push r16
+	; What to do
+	pop r16
+	out SREG, r16
+	pop r16
+	reti
+
+BCD:
+
+TIME:
+
+SEGTAB:
+	.db 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F
+	; 0,1,2,3,4,5,6,7,8,9
+
