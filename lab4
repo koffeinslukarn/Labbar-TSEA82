@@ -4,7 +4,7 @@
 	.equ	AD_CHAN_Y   = 1		; ADC1=PA1, PORTA bit 1 Y-led
 	.equ	GAME_SPEED  = 150	; inter-run delay (millisecs)
 	.equ	PRESCALE    = 3		; AD-prescaler value
-	.equ	BEEP_PITCH  = 1	; Victory beep pitch
+	.equ	BEEP_PITCH  = 1	; Victory beep pitch, lesser than scale for test
 	.equ	BEEP_LENGTH = 30	; Victory beep length
 	; ---------------------------------------
 	; --- Memory layout in SRAM
@@ -25,7 +25,7 @@ SEED:	.byte	1	; Seed for Random
 		inc	r16
 		sts	@0,r16
 	.endmacro
-	.macro DECSRAM	; dec byte in SRAM
+	.macro DECSRAM	; dec byte in SRAM ; Making of Sram funktions for easyer read code
 		lds	r16,@0
 		dec	r16
 		sts	@0,r16
@@ -62,30 +62,30 @@ SEED:	.byte	1	; Seed for Random
 	.cseg
 	.org 	$0
 	jmp	START
-	.org	INT0addr
-	jmp	MUX
+	.org	INT0addr ; erruption created by pinD2 by clock
+	jmp	MUX  ; makes mux and game run at same time
 
 START:
 	ldi r16, HIGH(RAMEND)
 	out SPH, r16
-	ldi r16, LOW(RAMEND)
+	ldi r16, LOW(RAMEND) ; setup stack
 	out SPL, r16
-	call	HW_INIT	
-	call	WARM
+	call	HW_INIT	; initsiera ingångar, utgångar
+	call	WARM ; initsiera spelplan
 RUN:
-	call	JOYSTICK
-	call	ERASE_VMEM
-	call	UPDATE
+	call	JOYSTICK ; get new pos x,y for player
+	call	ERASE_VMEM ;take away this board
+	call	UPDATE ;place new board
 	ldi r18, GAME_SPEED
 	call DELAY
 
 	lds r16, POSX
 	lds r17, TPOSX
-	cp r16, r17
+	cp r16, r17 ; X = TargetX?
 	brne	NO_HIT	
 	lds r16, POSY
 	lds r17, TPOSY
-	cp r16, r17
+	cp r16, r17 ; Y = TargetY?
 	brne	NO_HIT	
 	ldi	r16,BEEP_LENGTH
 	call	BEEP
@@ -202,13 +202,12 @@ ADC10_CONVERT:
 	out ADCSRA,r16 ; starta omvandling
 ADC10_WAIT:
 	in r16,ADCSRA
-	sbrc r16,ADSC ; om 0-st�lld, klar
-	rjmp ADC10_WAIT ; annars v�nta
-	in r16,ADCL ; obs, l�s l�g byte f�rst
-	in r17,ADCH ; h�g byte sedan
+	sbrc r16,ADSC ; if 0, done
+	rjmp ADC10_WAIT ; else wait
+	in r16,ADCL ; obs, lock low byte first
+	in r17,ADCH ; thern high byte 
 	ret
 
-	; ---------------------------------------
 	; --- UPDATE VMEM
 	; --- with POSX/Y, TPOSX/Y
 	; --- Uses r16, r17
@@ -229,7 +228,7 @@ SETPOS:
 	call	SETBIT		; r16=bitpattern for VMEM+POSY
 	ld	r17,Z		; r17=POSY Z to POSY
 	ldi	ZL,LOW(VMEM)
-	add	ZL,r17		; *(VMEM+T/POSY) ZL=VMEM+0..4
+	add	ZL,r17		; *(VMEM+T/POSY) ZL=VMEM+0..4 ;code from schell
 	ld	r17,Z		; current line in VMEM
 	or	r17,r16		; OR on place
 	st	Z,r17		; put back into VMEM
@@ -240,7 +239,7 @@ SETBIT:
 	ldi	r16,$01		; bit to shift
 SETBIT_LOOP:
 	dec 	r17			
-	brmi 	SETBIT_END	; til done
+	brmi 	SETBIT_END	; til done code from schell
 	lsl 	r16		; shift
 	jmp 	SETBIT_LOOP
 SETBIT_END:
@@ -339,6 +338,9 @@ EREASE_VMEM_LOOP:
 	dec r17
 	brne EREASE_VMEM_LOOP
 	ret
+
+; -------------------
+; same as from morse-code
 BEEP:
 	ldi r20, BEEP_LENGTH
 BEEP_LOOP:
@@ -346,11 +348,12 @@ BEEP_LOOP:
 	ldi r18, BEEP_PITCH
 	rcall DELAY
 	cbi PORTB,7
-	ldi r18, BEEP_PITCH
+	ldi r18, BEEP_PITCH 
 	rcall DELAY
 	dec r20
 	brne BEEP_LOOP
 	ret
+
 DELAY:
 	mov r16, r18 
 delayYttreLoop:
