@@ -140,12 +140,12 @@ JOY_X:
 	ldi r16,(1<<REFS0) ; kanal 0, AVCC ref, ADLAR=0
 	call ADC10
 CHECK_DEC_JOY_X:
-	cpi r17, $03
+	cpi r17, $00
 	brne CHECK_INC_JOY_X
 	; decrease x
 	DECSRAM POSX
 CHECK_INC_JOY_X:
-	cpi r17, $00
+	cpi r17, $03
 	brne JOY_Y
 	; inc x
 	INCSRAM POSX
@@ -153,12 +153,12 @@ JOY_Y:
 	ldi r16,(1<<REFS1)|(1<<MUX0) ; kanal 1, AVCC ref, ADLAR=0
 	call ADC10
 CHECK_DEC_JOY_Y:
-	cpi r17, $03
+	cpi r17, $00
 	brne CHECK_INC_JOY_Y
 	; decrease y
 	DECSRAM POSY
 CHECK_INC_JOY_Y:
-	cpi r17, $00
+	cpi r17, $03
 	brne JOY_LIM
 	; inc y
 	INCSRAM POSY
