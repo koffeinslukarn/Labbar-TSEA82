@@ -212,11 +212,12 @@ ADC10_WAIT:
 	; --- with POSX/Y, TPOSX/Y
 	; --- Uses r16, r17
 UPDATE:	
-	clr	ZH 
-	ldi	ZL,LOW(POSX)
-	call 	SETPOS
-	clr	ZH
-	ldi	ZL,LOW(TPOSX)
+	clr	ZH  ; Nollställ övre adressbyte för SRAM 
+	ldi	ZL,LOW(POSX) ; Ladda adressen till POSX i Z
+	call 	SETPOS ; Rita spelarens position i VMEM
+
+	clr	ZH ; Ladda adressen till TPOSX i Z
+	ldi	ZL,LOW(TPOSX) ; Rita målets position i VMEM
 	call	SETPOS
 	ret
 	; --- SETPOS Set bit pattern of r16 into *Z
@@ -225,7 +226,7 @@ UPDATE:
 	; --- 2nd call Z points to TPOSX at entry and TPOSY at exit
 SETPOS:
 	ld	r17,Z+  	; r17=POSX
-	call	SETBIT		; r16=bitpattern for VMEM+POSY
+	call	SETBIT		; r16=bitpattern for VMEM[POSY]
 	ld	r17,Z		; r17=POSY Z to POSY
 	ldi	ZL,LOW(VMEM)
 	add	ZL,r17		; *(VMEM+T/POSY) ZL=VMEM+0..4 ;code from schell
