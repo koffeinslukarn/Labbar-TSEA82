@@ -15,7 +15,7 @@ POSY:	.byte 	1
 TPOSX:	.byte	1	; Target position
 TPOSY:	.byte	1
 LINE:	.byte	1	; Current line	
-VMEM:	.byte	VMEM_SZ ; Video MEMory
+VMEM:	.byte	VMEM_SZ ; Video MEMory VMEM_SZ = 5
 SEED:	.byte	1	; Seed for Random
 	; ---------------------------------------
 	; --- Macros for inc/dec-rementing
@@ -97,7 +97,7 @@ NO_HIT:
 MUX:	
 	PUSHZ
 	PUSHX
-	PUSH_SREG
+	PUSH_SREG ;save all values
 	push r16
 	push r17
 	push r18
@@ -142,16 +142,16 @@ JOY_X:
 CHECK_DEC_JOY_X:
 	cpi r17, $00
 	brne CHECK_INC_JOY_X
-	; decrease x
+	; decrease x in sram
 	DECSRAM POSX
 CHECK_INC_JOY_X:
 	cpi r17, $03
 	brne JOY_Y
-	; inc x
+	; inc x in sram
 	INCSRAM POSX
 JOY_Y:
-	ldi r16,(1<<REFS1)|(1<<MUX0) ; kanal 1, AVCC ref, ADLAR=0
-	call ADC10
+	ldi r16,(1<<REFS1)|(1<<MUX0) ; kanal PA1, AVCC ref, ADLAR=0 1<<MUX0 används för att inte blanda ihop x och y signal.
+	call ADC10 ;get signal value from adc
 CHECK_DEC_JOY_Y:
 	cpi r17, $00
 	brne CHECK_INC_JOY_Y
@@ -159,7 +159,7 @@ CHECK_DEC_JOY_Y:
 	DECSRAM POSY
 CHECK_INC_JOY_Y:
 	cpi r17, $03
-	brne JOY_LIM
+	brne JOY_LIM ; Jump to check limit so it doesnt increase.
 	; inc y
 	INCSRAM POSY
 
@@ -191,7 +191,7 @@ POS_LESS:
 	inc	r16	
 POS_OK:
 	ret
-ADC10:
+ADC10: ;Denna kod fått från föreläsning
 	out ADMUX,r16
 	ldi r16,(1<<ADEN) ; A/D enable, ADPSx=111
 	ori r16,(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0)
@@ -206,7 +206,7 @@ ADC10_WAIT:
 	rjmp ADC10_WAIT ; else wait
 	in r16,ADCL ; obs, lock low byte first
 	in r17,ADCH ; thern high byte 
-	ret
+	ret ;result in r17, r16
 
 	; --- UPDATE VMEM
 	; --- with POSX/Y, TPOSX/Y
