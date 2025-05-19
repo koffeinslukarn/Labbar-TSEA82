@@ -231,7 +231,7 @@ SETPOS:
 	ldi	ZL,LOW(VMEM)
 	add	ZL,r17		; *(VMEM+T/POSY) ZL=VMEM+0..4 ;code from schell
 	ld	r17,Z		; current line in VMEM
-	or	r17,r16		; OR on place
+	or	r17,r16		; lägg till bit för X
 	st	Z,r17		; put back into VMEM
 	ret
 	; --- SETBIT Set bit r17 on r16
