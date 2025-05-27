@@ -1,0 +1,43 @@
+
+	call INIT
+	call LOOP
+
+INIT:
+	ldi r16,$FF
+	out DDRA, r16
+	out DDRB, r16
+	call LOOP
+
+
+LOOP:
+	call READ_STROBE
+	call READ_REST
+	jmp LOOP
+
+READ_STROBE:
+	sbis PINB, 0
+	jmp READ_STROBE
+	clr r17
+	clr r16
+	ret
+
+READ_REST:
+	in r17, PINB
+	lsr r17
+	cpi r17, 10
+	brsh TEN
+	out PORTA,r17
+	ret
+
+TEN:
+	ldi r16, 7
+	and r16, r17
+	subi r16, 2
+	ldi r17, $1
+	lsl r17
+	lsl r17
+	lsl r17
+	lsl r17
+	or r16, r17
+	out PORTA, r16
+	ret
