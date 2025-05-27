@@ -1,0 +1,69 @@
+ldi r16, HIGH(RAMEND)
+out SPH, r16
+ldi r16, LOW(RAMEND)
+out SPL, r16
+jmp INIT
+
+INIT:
+	ldi r16, $FF
+	out DDRA, r16
+	clr r16
+	out DDRB, r16
+	jmp MAIN
+
+MAIN:
+	call GET_STROBE
+
+
+GET_STROBE:
+	sbic PINB, 0
+	call GET_REST
+	jmp GET_STROBE
+
+GET_REST:
+	clr r17
+	in r17, PINB
+	lsr r17
+	cpi r17, 15
+	breq TOGGLE
+	ldi r16, 10
+	cpi r17, r16
+	brsh DONE
+	call SHOW
+
+DONE:
+	ret
+
+TOGGLE:
+	cpi r18, 0
+	breq LEFT
+	
+RIGHT:
+	dec r18
+	ret
+
+LEFT:
+	inc r18
+
+SHOW:
+	cpi r18, 1
+	breq SHOW_LEFT
+SHOW_RIGHT:
+	in r19, PINA
+	cpi r19, 0
+	brpl SHOW_NORMAL_LOW
+	lsr r19
+	lsr r19
+	lsr r19
+	lsr r19
+	out PORTA, r19
+
+SHOW_LEFT:
+
+SHOW_NORMAL_LOW:
+	out PORTA, r19
+
+
+
+
+	
