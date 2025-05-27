@@ -26,8 +26,7 @@ GET_REST:
 	lsr r17
 	cpi r17, 15
 	breq TOGGLE
-	ldi r16, 10
-	cpi r17, r16
+	cpi r17, 10
 	brsh DONE
 	call SHOW
 
@@ -44,26 +43,27 @@ RIGHT:
 
 LEFT:
 	inc r18
+	ret
 
 SHOW:
 	cpi r18, 1
 	breq SHOW_LEFT
 SHOW_RIGHT:
-	in r19, PINA
-	cpi r19, 0
-	brpl SHOW_NORMAL_LOW
-	lsr r19
-	lsr r19
-	lsr r19
-	lsr r19
-	out PORTA, r19
-
+	lsr r20
+	lsr r20
+	lsr r20
+	lsr r20
+	swap r20
+	add r20, r17
+	out PORTA, r20
+	ret
 SHOW_LEFT:
+	lsl r20
+	lsl r20
+	lsl r20
+	lsl r20
+	add r20, r17
+	swap r20
+	out PORTA, r20
+	ret
 
-SHOW_NORMAL_LOW:
-	out PORTA, r19
-
-
-
-
-	
