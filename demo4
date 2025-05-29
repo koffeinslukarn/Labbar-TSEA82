@@ -1,0 +1,74 @@
+	ldi r16, HIGH(RAMEND)
+	out SPH, r16
+	ldi r16, LOW(RAMEND)
+	out SPL, r16
+	call INIT
+
+INIT:
+	ldi r16,$FF
+	out DDRA, r16
+	clr r16
+	out DDRB, r16
+	jmp MAIN
+
+MAIN:
+	
+	call GET_STROBE
+	jmp MAIN
+
+
+GET_STROBE:
+	sbic PINB, 0
+	call REST
+	jmp GET_STROBE
+
+WAIT:
+	sbic PINB, 0
+	jmp WAIT
+	ret
+
+REST:
+	call WAIT
+	clr r17
+	clr r19
+	in r17, PINB
+	lsr r17 ; Invärdet
+	cpi r17, 0
+	breq INVERT_FLAG
+	cpi r18, 0
+	breq SHOW_NORMAL
+	jmp SHOW_INVERTED
+
+SHOW_NORMAL:
+	add r19, r17
+	swap r19
+	add r19, r17
+	out PORTA, r19
+	ret
+
+
+SHOW_INVERTED:
+	add r19, r17
+	swap r19
+	com r17
+	lsl r17
+	lsl r17
+	lsl r17
+	lsl r17
+	swap r17
+	add r19, r17
+	out PORTA, r19
+	ret
+	
+
+INVERT_FLAG:
+	cpi r18, 0
+	breq INVERT
+	dec r18
+	jmp MAIN
+INVERT:
+	inc r18
+	jmp MAIN
+	
+	
+	
