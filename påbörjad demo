@@ -1,0 +1,47 @@
+
+INIT: 
+	ldi r16, $FF
+	out DDRA, r16
+	clr r16
+	OUT DDRB, r16
+	out DDRD, r16
+	clr r17
+	clr r19
+	call MAIN
+
+MAIN:
+	sbis PINB, 1
+	call WAIT_LEFT_BUTTON
+	sbis PINB, 3
+	call WAIT_RIGHT_BUTTON
+	jmp MAIN
+
+WAIT_LEFT_BUTTON:
+	sbis PINB, 0
+	jmp JMP_LEFT
+	jmp WAIT_LEFT_BUTTON
+
+JMP_LEFT: ; MUXEN i r16, värde r19
+	cpi, r19, 0
+	breq NOLLSTALL_LEFT
+	dec r19
+	cpi r19, 8
+	breq LEFT_WALL
+	cpi r19, 7
+	breq r19, LEFT_WALL
+	cpi r19, 2
+	breq RIGHT_WALL
+	cpi r19, 1
+	breq RIGHT_WALL
+	cpi r19, 7
+	brlo UNDER_WALL
+	call UPPER_WALL
+	ret
+
+
+
+	
+
+NOLLSTALL_LEFT:
+	ldi r19, 11
+	jmp UPPER_WALL
